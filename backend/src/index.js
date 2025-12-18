@@ -26,8 +26,8 @@ app.use(cookieParser());
 
 // CORS configuration
 app.use(cors({
-  origin: "http://localhost:5173", // Your frontend URL
-  credentials: true  // Required for cookies/session
+  origin: process.env.FRONTEND_URL,
+  credentials: true
 }));
 
 // Use the auth routes for the /api/auth endpoint
