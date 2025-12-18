@@ -19,7 +19,9 @@ const NoChatSelected = () => {
           
           {/* Main Icon */}
           <div className="relative mx-auto w-32 h-32">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 to-black dark:from-gray-800 dark:to-gray-900 rounded-3xl rotate-6 animate-pulse-slow"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 to-black dark:from-gray-800 dark:to-gray-900 rounded-3xl rotate-6" style={{
+              animation: 'pulse-slow 3s ease-in-out infinite'
+            }}></div>
             <div className="absolute inset-2 bg-gradient-to-br from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-2xl flex items-center justify-center">
               <MessageSquare className="w-16 h-16 text-gray-900 dark:text-white" />
             </div>
@@ -29,7 +31,7 @@ const NoChatSelected = () => {
         {/* Welcome Text */}
         <div className="space-y-4 mb-10">
           <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-            Welcome to Chatty
+            Welcome to Nexus
           </h2>
           <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed max-w-md mx-auto">
             Select a conversation or start a new one to begin messaging
@@ -82,16 +84,15 @@ const NoChatSelected = () => {
         </div>
       </div>
 
-      {/* Custom Animation Keyframes */}
-      <style jsx>{`
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 1; transform: rotate(6deg); }
-          50% { opacity: 0.8; transform: rotate(8deg); }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 3s ease-in-out infinite;
-        }
-      `}</style>
+      {/* Add this to your global CSS file or as a style tag in your main HTML */}
+      <style>
+        {`
+          @keyframes pulse-slow {
+            0%, 100% { opacity: 1; transform: rotate(6deg); }
+            50% { opacity: 0.8; transform: rotate(8deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };

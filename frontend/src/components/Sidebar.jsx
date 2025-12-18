@@ -9,18 +9,38 @@ const Sidebar = () => {
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState([]);
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  const filteredUsers = (showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users
-  ).filter((user) =>
-    user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    // Ensure users is an array before filtering
+    const usersArray = Array.isArray(users) ? users : [];
+    const onlineUsersArray = Array.isArray(onlineUsers) ? onlineUsers : [];
+
+    let filtered = usersArray;
+    
+    // Apply online filter
+    if (showOnlineOnly) {
+      filtered = filtered.filter((user) => 
+        user && user._id && onlineUsersArray.includes(user._id)
+      );
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((user) => 
+        user && (
+          (user.fullName && user.fullName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+      );
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, onlineUsers, showOnlineOnly, searchQuery]);
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
@@ -70,7 +90,7 @@ const Sidebar = () => {
             Online
           </button>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {onlineUsers.length - 1} online
+            {Array.isArray(onlineUsers) ? onlineUsers.length - 1 : 0} online
           </span>
         </div>
       </div>
@@ -83,90 +103,90 @@ const Sidebar = () => {
           </h3>
           
           <div className="space-y-1">
-            {filteredUsers.map((user) => {
-              const isOnline = onlineUsers.includes(user._id);
-              const isSelected = selectedUser?._id === user._id;
-              
-              return (
-                <button
-                  key={user._id}
-                  onClick={() => setSelectedUser(user)}
-                  className={`w-full p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group ${
-                    isSelected
-                      ? "bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700"
-                      : "hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    <div className={`w-12 h-12 rounded-full overflow-hidden ${
-                      isOnline ? 'ring-2 ring-green-500' : 'ring-1 ring-gray-200 dark:ring-gray-700'
-                    }`}>
-                      <img
-                        src={user.profilePic || "/avatar.png"}
-                        alt={user.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    {isOnline && (
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900" />
-                    )}
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className={`font-medium truncate ${
-                        isSelected 
-                          ? 'text-gray-900 dark:text-white' 
-                          : 'text-gray-900 dark:text-white group-hover:text-gray-900 dark:group-hover:text-white'
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => {
+                if (!user || !user._id) return null;
+                
+                const isOnline = Array.isArray(onlineUsers) && onlineUsers.includes(user._id);
+                const isSelected = selectedUser?._id === user._id;
+                
+                return (
+                  <button
+                    key={user._id}
+                    onClick={() => setSelectedUser(user)}
+                    className={`w-full p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group ${
+                      isSelected
+                        ? "bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700"
+                        : "hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-12 h-12 rounded-full overflow-hidden ${
+                        isOnline ? 'ring-2 ring-green-500' : 'ring-1 ring-gray-200 dark:ring-gray-700'
                       }`}>
-                        {user.fullName}
-                      </h3>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        12:30
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm truncate ${
-                        isSelected 
-                          ? 'text-gray-600 dark:text-gray-400' 
-                          : 'text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400'
-                      }`}>
-                        {isOnline ? "Online • Active now" : "Last seen 2h ago"}
-                      </p>
-                      {false && ( // Replace with actual unread count
-                        <span className="min-w-[18px] h-[18px] bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-full flex items-center justify-center px-1">
-                          3
-                        </span>
+                        <img
+                          src={user.profilePic || "/avatar.png"}
+                          alt={user.fullName || "User"}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/avatar.png";
+                          }}
+                        />
+                      </div>
+                      {isOnline && (
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900" />
                       )}
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+
+                    {/* User Info */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className={`font-medium truncate ${
+                          isSelected 
+                            ? 'text-gray-900 dark:text-white' 
+                            : 'text-gray-900 dark:text-white group-hover:text-gray-900 dark:group-hover:text-white'
+                        }`}>
+                          {user.fullName || "Unknown User"}
+                        </h3>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          12:30
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm truncate ${
+                          isSelected 
+                            ? 'text-gray-600 dark:text-gray-400' 
+                            : 'text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400'
+                        }`}>
+                          {isOnline ? "Online • Active now" : "Last seen recently"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <Users className="w-6 h-6 text-gray-400" />
+                </div>
+                <h3 className="text-gray-900 dark:text-white font-medium mb-2">
+                  {searchQuery ? "No results found" : "No conversations"}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  {searchQuery
+                    ? "Try searching with a different name"
+                    : showOnlineOnly
+                    ? "No contacts are currently online"
+                    : "Start a new conversation to see it here"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* No Results State */}
-      {filteredUsers.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-            <Users className="w-6 h-6 text-gray-400" />
-          </div>
-          <h3 className="text-gray-900 dark:text-white font-medium mb-2">
-            {searchQuery ? "No results found" : "No conversations"}
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {searchQuery
-              ? "Try searching with a different name"
-              : showOnlineOnly
-              ? "No contacts are currently online"
-              : "Start a new conversation to see it here"}
-          </p>
-        </div>
-      )}
 
       {/* User Status */}
       <div className="p-4 border-t border-gray-100 dark:border-gray-800">
@@ -175,7 +195,9 @@ const Sidebar = () => {
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
             <span>Active</span>
           </div>
-          <span className="font-medium">{users.length} contacts</span>
+          <span className="font-medium">
+            {Array.isArray(users) ? users.length : 0} contacts
+          </span>
         </div>
       </div>
     </aside>
