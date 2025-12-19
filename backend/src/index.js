@@ -8,7 +8,7 @@ import messageRoutes from "./routes/message-route.js";
 import bodyParser from 'body-parser';
 import {app,server } from "./lib/socket.js";
 import path from "path";
-
+import adminRoutes from "./routes/admin-route.js";
 
 
 // Load environment variables
@@ -33,7 +33,7 @@ app.use(cors({
 // Use the auth routes for the /api/auth endpoint
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
-
+app.use("/api/admin", adminRoutes);
 
 
 if (process.env.NODE_ENV === "production") {
