@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Calendar, Shield, LogOut, Settings, CreditCard, Globe, Bell } from "lucide-react";
+import { Camera, Mail, User, Calendar, Shield, LogOut, Settings, CreditCard, Globe, Bell, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ProfilePage = () => {
@@ -91,8 +91,25 @@ const ProfilePage = () => {
                 </div>
                 <h2 className="font-semibold text-gray-900 text-lg">{authUser?.fullName}</h2>
                 <p className="text-gray-500 text-sm mt-1">{authUser?.email}</p>
-                <div className="mt-2 px-3 py-1 bg-gray-100 rounded-full">
-                  <span className="text-xs font-medium text-gray-700">Premium Member</span>
+                <div className="flex flex-col items-center gap-2 mt-3">
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    authUser?.isAdmin 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "bg-gray-100 text-gray-700"
+                  }`}>
+                    {authUser?.isAdmin ? "Admin" : "Premium Member"}
+                  </div>
+                  
+                  {/* Admin Dashboard Button */}
+                  {authUser?.isAdmin && (
+                    <button
+                      onClick={() => (window.location.href = "/admin")}
+                      className="mt-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-full hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                      style={{ minWidth: "140px" }}
+                    >
+                      Admin Dashboard
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -104,15 +121,22 @@ const ProfilePage = () => {
                   { id: "notifications", label: "Notifications", icon: Bell },
                   { id: "billing", label: "Billing", icon: CreditCard },
                   { id: "preferences", label: "Preferences", icon: Settings },
+                  ...(authUser?.isAdmin ? [{ id: "admin", label: "Admin Panel", icon: ShieldCheck }] : []),
                 ].map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      if (item.id === "admin") {
+                        window.location.href = "/admin";
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                    }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                       activeTab === item.id
                         ? "bg-black text-white"
                         : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                    } ${item.id === "admin" ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700" : ""}`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium">{item.label}</span>
@@ -138,6 +162,19 @@ const ProfilePage = () => {
               <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                 <div className="p-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+                  
+                  {/* Admin Badge */}
+                  {authUser?.isAdmin && (
+                    <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-6 h-6 text-purple-600" />
+                        <div>
+                          <h3 className="font-semibold text-purple-700">Administrator Account</h3>
+                          <p className="text-sm text-purple-600">You have access to admin dashboard and special permissions.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Personal Info Card */}
                   <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200">
@@ -247,7 +284,9 @@ const ProfilePage = () => {
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                         <span className="text-xl font-semibold text-gray-900">Active</span>
                       </div>
-                      <p className="text-sm text-gray-500 mt-2">Verified account</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {authUser?.isAdmin ? "Admin • Verified" : "Verified account"}
+                      </p>
                     </div>
                   </div>
                 </div>
