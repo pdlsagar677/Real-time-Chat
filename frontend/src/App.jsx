@@ -1,24 +1,28 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; // Import BrowserRouter and Navigate
-import Navbar from './components/Navbar';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import SignUpPage from './pages/SignUpPage';
-import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage';
-import { useAuthStore } from './store/useAuthStore';
+import React, { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom"; // Import BrowserRouter and Navigate
+import Navbar from "./components/Navbar";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
+import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
+import { useAuthStore } from "./store/useAuthStore";
 import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
-import { useThemeStore } from './store/useThemeStore';
-
+import { useThemeStore } from "./store/useThemeStore";
+import AdminLayout from "./components/layouts/Admin-layout";
 
 const App = () => {
   // Destructure both authUser and isCheckingAuth from the useAuthStore
-  const { authUser, checkAuth, isCheckingAuth ,onlineUsers } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
   const { theme } = useThemeStore();
 
-
- console.log(onlineUsers);
+  console.log(onlineUsers);
   // Use useEffect to trigger the checkAuth function once on component mount
   useEffect(() => {
     checkAuth();
@@ -35,16 +39,31 @@ const App = () => {
 
   return (
     <Router>
-      <div  data-theme={theme}>
+      <div data-theme={theme}>
         <Navbar />
         <Routes>
-          <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
-          <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
-          <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
+          <Route
+            path="/"
+            element={authUser ? <HomePage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/signup"
+            element={!authUser ? <SignUpPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/login"
+            element={!authUser ? <LoginPage /> : <Navigate to="/" />}
+          />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+          <Route
+            path="/profile"
+            element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/admin"
+            element={authUser ? <AdminLayout /> : <Navigate to="/login" />}
+          ></Route>
         </Routes>
-
 
         <Toaster />
       </div>

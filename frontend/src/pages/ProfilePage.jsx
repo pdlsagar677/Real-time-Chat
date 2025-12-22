@@ -119,9 +119,6 @@ const ProfilePage = () => {
                   { id: "profile", label: "Profile", icon: User },
                   { id: "security", label: "Security", icon: Shield },
                   { id: "notifications", label: "Notifications", icon: Bell },
-                  { id: "billing", label: "Billing", icon: CreditCard },
-                  { id: "preferences", label: "Preferences", icon: Settings },
-                  ...(authUser?.isAdmin ? [{ id: "admin", label: "Admin Panel", icon: ShieldCheck }] : []),
                 ].map((item) => (
                   <button
                     key={item.id}
