@@ -17,6 +17,7 @@ import { Toaster } from "react-hot-toast";
 import { useThemeStore } from "./store/useThemeStore";
 import AdminLayout from "./components/layouts/Admin-layout";
 import { AdminUsers } from "./pages/admin-view/AdminUsers";
+import AdminEditUser from "./pages/admin-view/AdminUpdateUser";
 
 const App = () => {
   // Destructure both authUser and isCheckingAuth from the useAuthStore
@@ -63,8 +64,9 @@ const App = () => {
           <Route
             path="/admin"
             element={authUser ? <AdminLayout /> : <Navigate to="/login" />}
-          ><Route path="users" element={<AdminUsers/>}/>
-
+          >
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:id/edit" element={<AdminEditUser />} />
 
           </Route>
         </Routes>
