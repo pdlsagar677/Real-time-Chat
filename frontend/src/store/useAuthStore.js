@@ -84,9 +84,10 @@ export const useAuthStore = create((set, get) => ({
   const { authUser, socket } = get();
   if (!authUser || socket) return;
 
-  const newSocket = io(SOCKET_URL, {
-    query: { userId: authUser._id },
-  });
+ const newSocket = io(SOCKET_URL, {
+  query: { userId: authUser._id },
+  transports: ["websocket"],
+});
 
   set({ socket: newSocket });
 
