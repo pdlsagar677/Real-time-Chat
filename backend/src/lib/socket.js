@@ -14,108 +14,87 @@ const io = new Server(server, {
 
 // userId -> socketId
 const userSocketMap = {};
+// userId -> activeCallUserId
+const activeCalls = {};
 
-// helper
-export const getReceiverSocketId = (userId) => {
-  return userSocketMap[userId];
-};
+export const getReceiverSocketId = (userId) => userSocketMap[userId];
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
   const userId = socket.handshake.query.userId;
+  if (userId) userSocketMap[userId] = socket.id;
 
-  if (userId) {
-    userSocketMap[userId] = socket.id;
-  }
-
-  // broadcast online users
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  /**
-   * ===============================
-   * CALL SIGNALING EVENTS
-   * ===============================
-   */
+  // ================= CALL INIT =================
+  socket.on("call:user", ({ from, to }) => {
+    if (activeCalls[from] || activeCalls[to]) {
+      io.to(socket.id).emit("call:busy");
+      return;
+    }
 
-  // User A calls User B
-  socket.on("call:user", ({ to, from }) => {
     const receiverSocketId = userSocketMap[to];
-
     if (!receiverSocketId) {
       io.to(socket.id).emit("call:user-offline");
       return;
     }
 
-    io.to(receiverSocketId).emit("call:incoming", {
-      from,
-    });
+    activeCalls[from] = to;
+    activeCalls[to] = from;
+
+    io.to(receiverSocketId).emit("call:incoming", { from });
+
+    // CALL TIMEOUT (30s)
+    setTimeout(() => {
+      if (activeCalls[from] === to) {
+        delete activeCalls[from];
+        delete activeCalls[to];
+        io.to(receiverSocketId).emit("call:ended");
+        io.to(userSocketMap[from]).emit("call:ended");
+      }
+    }, 30000);
   });
 
-  // User B accepts call
+  // ================= ACCEPT =================
   socket.on("call:accept", ({ to }) => {
-    const callerSocketId = userSocketMap[to];
-    if (callerSocketId) {
-      io.to(callerSocketId).emit("call:accepted");
-    }
+    io.to(userSocketMap[to]).emit("call:accepted");
   });
 
-  // User B rejects call
+  // ================= REJECT =================
   socket.on("call:reject", ({ to }) => {
-    const callerSocketId = userSocketMap[to];
-    if (callerSocketId) {
-      io.to(callerSocketId).emit("call:rejected");
-    }
+    delete activeCalls[to];
+    delete activeCalls[userId];
+    io.to(userSocketMap[to]).emit("call:rejected");
   });
 
-  // Call ended by either user
+  // ================= END =================
   socket.on("call:end", ({ to }) => {
-    const otherUserSocketId = userSocketMap[to];
-    if (otherUserSocketId) {
-      io.to(otherUserSocketId).emit("call:ended");
-    }
+    delete activeCalls[to];
+    delete activeCalls[userId];
+    io.to(userSocketMap[to]).emit("call:ended");
   });
 
-  /**
-   * ===============================
-   * WEBRTC SIGNALING
-   * ===============================
-   */
-
+  // ================= WEBRTC =================
   socket.on("webrtc:offer", ({ to, offer }) => {
-    const receiverSocketId = userSocketMap[to];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("webrtc:offer", { offer });
-    }
+    io.to(userSocketMap[to]).emit("webrtc:offer", { offer });
   });
 
   socket.on("webrtc:answer", ({ to, answer }) => {
-    const callerSocketId = userSocketMap[to];
-    if (callerSocketId) {
-      io.to(callerSocketId).emit("webrtc:answer", { answer });
-    }
+    io.to(userSocketMap[to]).emit("webrtc:answer", { answer });
   });
 
   socket.on("webrtc:ice-candidate", ({ to, candidate }) => {
-    const receiverSocketId = userSocketMap[to];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("webrtc:ice-candidate", { candidate });
-    }
+    io.to(userSocketMap[to]).emit("webrtc:ice-candidate", { candidate });
   });
 
-  /**
-   * ===============================
-   * DISCONNECT
-   * ===============================
-   */
-
+  // ================= DISCONNECT =================
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-
-    if (userId) {
-      delete userSocketMap[userId];
+    const peer = activeCalls[userId];
+    if (peer) {
+      delete activeCalls[peer];
+      io.to(userSocketMap[peer]).emit("call:ended");
     }
-
+    delete activeCalls[userId];
+    delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
