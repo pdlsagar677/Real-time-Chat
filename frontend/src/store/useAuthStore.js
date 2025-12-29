@@ -5,6 +5,25 @@ import { io } from "socket.io-client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
+// Helper function to get token (works on both mobile and desktop)
+const getAuthToken = () => {
+  // Try to get from localStorage first (reliable on mobile)
+  const tokenFromStorage = localStorage.getItem("authToken");
+  
+  // Fallback to cookies for desktop
+  if (!tokenFromStorage && typeof document !== 'undefined') {
+    const match = document.cookie.match(/jwt=([^;]+)/);
+    return match ? match[1] : null;
+  }
+  
+  return tokenFromStorage;
+};
+
+// Helper function to set token
+const setAuthToken = (token) => {
+  localStorage.setItem("authToken", token);
+};
+
 export const useAuthStore = create((set, get) => ({
   authUser: null,
   isSigningUp: false,
@@ -18,10 +37,17 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get("/auth/check");
       set({ authUser: res.data });
+      
+      // Store token from response if available
+      if (res.data.token) {
+        setAuthToken(res.data.token);
+      }
+      
       get().connectSocket();
     } catch (error) {
       console.log("Error in checkAuth:", error);
       set({ authUser: null });
+      localStorage.removeItem("authToken");
     } finally {
       set({ isCheckingAuth: false });
     }
@@ -32,10 +58,11 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post("/auth/signup", data);
       set({ authUser: res.data });
+      setAuthToken(res.data.token); // Store token
       toast.success("Account created successfully");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Signup failed");
     } finally {
       set({ isSigningUp: false });
     }
@@ -46,10 +73,11 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post("/auth/login", data);
       set({ authUser: res.data });
+      setAuthToken(res.data.token); // Store token
       toast.success("Logged in successfully");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Login failed");
     } finally {
       set({ isLoggingIn: false });
     }
@@ -59,88 +87,81 @@ export const useAuthStore = create((set, get) => ({
     try {
       await axiosInstance.post("/auth/logout");
       set({ authUser: null });
+      localStorage.removeItem("authToken");
       toast.success("Logged out successfully");
       get().disconnectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Logout failed");
     }
   },
 
-  updateProfile: async (data) => {
-    set({ isUpdatingProfile: true });
-    try {
-      const res = await axiosInstance.put("/auth/update-profile", data);
-      set({ authUser: res.data });
-      toast.success("Profile updated successfully");
-    } catch (error) {
-      console.log("error in update profile:", error);
-      toast.error(error.response.data.message);
-    } finally {
-      set({ isUpdatingProfile: false });
+  connectSocket: () => {
+    const { authUser, socket } = get();
+    if (!authUser || socket) return;
+
+    // Get token from storage (works on mobile)
+    const token = getAuthToken();
+    if (!token) {
+      console.error("No auth token available for socket connection");
+      return;
     }
+
+    // Add delay for mobile
+    setTimeout(() => {
+      const newSocket = io(SOCKET_URL, {
+        query: { 
+          userId: authUser._id,
+        },
+        auth: {
+          token: token  // Send token in auth object
+        },
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
+        withCredentials: true,
+      });
+
+      set({ socket: newSocket });
+
+      // Connection events
+      newSocket.on("connect", () => {
+        console.log("Socket connected with ID:", newSocket.id);
+      });
+
+      newSocket.on("connect_error", (error) => {
+        console.error("Socket connection error:", error.message);
+        
+        // If auth fails, try to reconnect with fresh token
+        if (error.message.includes("Authentication error")) {
+          setTimeout(() => {
+            get().disconnectSocket();
+            get().connectSocket();
+          }, 1000);
+        }
+      });
+
+      newSocket.on("auth:success", (data) => {
+        console.log("Socket authentication successful:", data);
+      });
+
+      newSocket.on("getOnlineUsers", (users) => {
+        set({ onlineUsers: users });
+      });
+
+      newSocket.on("disconnect", (reason) => {
+        console.log("Socket disconnected:", reason);
+      });
+
+    }, 1000);
   },
 
-connectSocket: () => {
-  const { authUser, socket } = get();
-  if (!authUser || socket) return;
-
-  // Add delay for mobile - critical!
-  setTimeout(() => {
-    const newSocket = io(SOCKET_URL, {
-      query: { 
-        userId: authUser._id,
-        // Get token from cookies for mobile
-        token: document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1")
-      },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 20000,
-      withCredentials: true,
-      auth: {
-        token: document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1")
-      }
-    });
-
-    set({ socket: newSocket });
-
-    // Handle authentication events
-    newSocket.on("auth:required", () => {
-      console.log("Socket requires authentication");
-      // Try to send token again
-      const token = document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1");
-      if (token) {
-        newSocket.emit("auth:token", { token });
-      }
-    });
-
-    newSocket.on("auth:success", () => {
-      console.log("Socket authentication successful");
-    });
-
-    newSocket.on("auth:failed", (data) => {
-      console.log("Socket authentication failed:", data.message);
-    });
-
-    newSocket.on("connection:established", (data) => {
-      console.log("Socket connected:", data);
-    });
-
-    newSocket.on("getOnlineUsers", (users) => {
-      set({ onlineUsers: users });
-    });
-
-  }, 1000); // 1-second delay for mobile
-},
-
-  
   disconnectSocket: () => {
-  const socket = get().socket;
-  if (socket) {
-    socket.disconnect();
-    set({ socket: null });
-  }
-},
-
+    const socket = get().socket;
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
 }));
