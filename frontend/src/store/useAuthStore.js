@@ -80,20 +80,58 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
- connectSocket: () => {
+connectSocket: () => {
   const { authUser, socket } = get();
   if (!authUser || socket) return;
 
- const newSocket = io(SOCKET_URL, {
-  query: { userId: authUser._id },
-  transports: ["websocket"],
-});
+  // Add delay for mobile - critical!
+  setTimeout(() => {
+    const newSocket = io(SOCKET_URL, {
+      query: { 
+        userId: authUser._id,
+        // Get token from cookies for mobile
+        token: document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1")
+      },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      withCredentials: true,
+      auth: {
+        token: document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1")
+      }
+    });
 
-  set({ socket: newSocket });
+    set({ socket: newSocket });
 
-  newSocket.on("getOnlineUsers", (users) => {
-    set({ onlineUsers: users });
-  });
+    // Handle authentication events
+    newSocket.on("auth:required", () => {
+      console.log("Socket requires authentication");
+      // Try to send token again
+      const token = document.cookie.replace(/(?:(?:^|.*;\s*)jwt\s*=\s*([^;]*).*$)|^.*$/, "$1");
+      if (token) {
+        newSocket.emit("auth:token", { token });
+      }
+    });
+
+    newSocket.on("auth:success", () => {
+      console.log("Socket authentication successful");
+    });
+
+    newSocket.on("auth:failed", (data) => {
+      console.log("Socket authentication failed:", data.message);
+    });
+
+    newSocket.on("connection:established", (data) => {
+      console.log("Socket connected:", data);
+    });
+
+    newSocket.on("getOnlineUsers", (users) => {
+      set({ onlineUsers: users });
+    });
+
+  }, 1000); // 1-second delay for mobile
 },
 
   

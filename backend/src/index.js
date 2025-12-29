@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import authRoutes from "./routes/auth-route.js";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -6,52 +7,46 @@ import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 import messageRoutes from "./routes/message-route.js";
 import bodyParser from 'body-parser';
-import {app,server } from "./lib/socket.js";
-import path from "path";
+import { initSocket, getIo } from "./lib/socket.js";
 import adminRoutes from "./routes/admin-route.js";
-
 
 // Load environment variables
 dotenv.config();
 const PORT = process.env.PORT;
-const __dirname = path.resolve();
 
-// Increase the size limit to handle large file uploads
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// Create app and server
+const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocket(server);
+
+// Store io in app for routes to access
+app.set('io', getIo());
 
 // Middlewares
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-
-
 
 app.use(cors({
   origin: process.env.FRONTEND_URL, 
   credentials: true,
 }));
 
-// Use the auth routes for the /api/auth endpoint
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);
 
-
-if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../frontend/dist")));
-  
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
-    });
-  }
-  
-// Start the server and connect to the database
+// Start server
 server.listen(PORT, async () => {
-    console.log("Server is running on port " + PORT);
-    try {
-        await connectDB(); // Assuming connectDB is an async function
-        console.log("Database connected successfully");
-    } catch (err) {
-        console.error("Database connection failed", err);
-    }
+  console.log("Server is running on port " + PORT);
+  try {
+    await connectDB();
+    console.log("Database connected successfully");
+  } catch (err) {
+    console.error("Database connection failed", err);
+  }
 });
