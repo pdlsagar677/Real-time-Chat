@@ -18,6 +18,7 @@ import { useThemeStore } from "./store/useThemeStore";
 import AdminLayout from "./components/layouts/Admin-layout";
 import { AdminUsers } from "./pages/admin-view/AdminUsers";
 import AdminEditUser from "./pages/admin-view/AdminUpdateUser";
+import CallOverlay from "./components/CallOverlay";
 
 const App = () => {
   // Destructure both authUser and isCheckingAuth from the useAuthStore
@@ -72,6 +73,7 @@ const App = () => {
         </Routes>
 
         <Toaster />
+        <CallOverlay />
       </div>
     </Router>
   );

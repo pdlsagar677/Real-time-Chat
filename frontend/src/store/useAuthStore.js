@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { setupCallListeners, teardownCallListeners, useCallStore } from "./useCallStore";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
@@ -192,6 +193,7 @@ export const useAuthStore = create((set, get) => ({
       newSocket.on("connect", () => {
         console.log("✅ Socket connected with ID:", newSocket.id);
         console.log("📤 Socket auth data sent:", { token: token ? token.substring(0, 20) + "..." : "cookies" });
+        setupCallListeners(newSocket);
       });
 
       newSocket.on("connect_error", (error) => {
@@ -244,6 +246,8 @@ export const useAuthStore = create((set, get) => ({
     const socket = get().socket;
     if (socket) {
       console.log("👋 Disconnecting socket...");
+      teardownCallListeners(socket);
+      useCallStore.getState().cleanup();
       socket.removeAllListeners();
       socket.disconnect();
       set({ socket: null });

@@ -1,5 +1,9 @@
 import express from "express";
+import https from "https";
 import http from "http";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth-route.js";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -14,9 +18,23 @@ import adminRoutes from "./routes/admin-route.js";
 dotenv.config();
 const PORT = process.env.PORT;
 
-// Create app and server
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const certPath = path.resolve(__dirname, "../../certs/cert.pem");
+const keyPath = path.resolve(__dirname, "../../certs/key.pem");
+
+// Create app and server (HTTPS if certs exist, otherwise HTTP)
 const app = express();
-const server = http.createServer(app);
+let server;
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  server = https.createServer(
+    { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) },
+    app
+  );
+  console.log("Using HTTPS server");
+} else {
+  server = http.createServer(app);
+  console.log("Using HTTP server (no certs found)");
+}
 
 // Initialize Socket.IO
 initSocket(server);
@@ -31,7 +49,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL, 
+  origin: process.env.FRONTEND_URL,
   credentials: true,
 }));
 
