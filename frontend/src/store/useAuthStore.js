@@ -120,6 +120,19 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  updateProfile: async (data) => {
+    set({ isUpdatingProfile: true });
+    try {
+      const res = await axiosInstance.put("/auth/update-profile", data);
+      set({ authUser: res.data });
+    } catch (error) {
+      console.log("Error in updateProfile:", error);
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    } finally {
+      set({ isUpdatingProfile: false });
+    }
+  },
+
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
@@ -144,43 +157,41 @@ export const useAuthStore = create((set, get) => ({
       return;
     }
 
-    // Get token from storage (works on mobile)
+    // Get token from storage if available (optional, for mobile)
     const token = getAuthToken();
-    console.log("🔑 Token for socket connection:", token ? "Available" : "NOT AVAILABLE");
-    
-    if (!token) {
-      console.error("❌ No auth token available for socket connection");
-      toast.error("Authentication error. Please login again.");
-      return;
-    }
+    console.log("🔑 Token for socket connection:", token ? "Available" : "Using cookies");
 
     console.log("🌐 Attempting socket connection with userId:", authUser._id);
     console.log("🔗 Socket URL:", SOCKET_URL);
 
     // Add delay for mobile
     setTimeout(() => {
-      const newSocket = io(SOCKET_URL, {
-        query: { 
+      const socketOptions = {
+        query: {
           userId: authUser._id,
         },
-        auth: {
-          token: token  // Send token in auth object
-        },
-        transports: ["websocket", "polling", "websocket", "polling"], // Multiple attempts
+        transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
         timeout: 30000,
         withCredentials: true,
         forceNew: true,
-      });
+      };
+
+      // Only add auth token if available (mobile), otherwise rely on cookies
+      if (token) {
+        socketOptions.auth = { token };
+      }
+
+      const newSocket = io(SOCKET_URL, socketOptions);
 
       set({ socket: newSocket });
 
       // Connection events with detailed logging
       newSocket.on("connect", () => {
         console.log("✅ Socket connected with ID:", newSocket.id);
-        console.log("📤 Socket auth data sent:", { token: token.substring(0, 20) + "..." });
+        console.log("📤 Socket auth data sent:", { token: token ? token.substring(0, 20) + "..." : "cookies" });
       });
 
       newSocket.on("connect_error", (error) => {
