@@ -22,10 +22,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const certPath = path.resolve(__dirname, "../../certs/cert.pem");
 const keyPath = path.resolve(__dirname, "../../certs/key.pem");
 
-// Create app and server (HTTPS if certs exist, otherwise HTTP)
+// Create app and server (HTTPS only for local dev; production uses HTTP since Render handles SSL)
 const app = express();
 let server;
-if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+if (process.env.NODE_ENV !== "production" && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   server = https.createServer(
     { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) },
     app
@@ -33,7 +33,7 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   console.log("Using HTTPS server");
 } else {
   server = http.createServer(app);
-  console.log("Using HTTP server (no certs found)");
+  console.log("Using HTTP server");
 }
 
 // Initialize Socket.IO
