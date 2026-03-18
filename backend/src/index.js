@@ -49,7 +49,9 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: process.env.NODE_ENV === "production"
+    ? process.env.RENDER_EXTERNAL_URL || true
+    : process.env.FRONTEND_URL,
   credentials: true,
 }));
 
@@ -57,6 +59,17 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);
+
+// Serve frontend static files in production
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
+
+  // SPA fallback — any non-API route serves index.html
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 // Start server
 server.listen(PORT, async () => {

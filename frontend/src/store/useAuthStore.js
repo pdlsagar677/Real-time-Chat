@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import { setupCallListeners, teardownCallListeners, useCallStore } from "./useCallStore";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+const SOCKET_URL = import.meta.env.MODE === "production" ? "" : import.meta.env.VITE_SOCKET_URL;
 
 // Helper function to get token (works on both mobile and desktop)
 const getAuthToken = () => {
